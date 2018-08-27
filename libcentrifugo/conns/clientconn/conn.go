@@ -15,7 +15,9 @@ import (
 	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
 	"github.com/centrifugal/centrifugo/libcentrifugo/queue"
 	"github.com/centrifugal/centrifugo/libcentrifugo/raw"
+	"github.com/centrifugal/centrifugo/libcentrifugo/lsd"
 	"github.com/satori/go.uuid"
+	"fmt"
 )
 
 func init() {
@@ -141,6 +143,24 @@ func (c *client) sendMessages() {
 		}
 		plugin.Metrics.Counters.Inc("client_num_msg_sent")
 		plugin.Metrics.Counters.Add("client_bytes_out", int64(qm.Len()))
+
+		// LSD event
+		var data map[string]interface{}
+		err = json.Unmarshal(qm.Payload, &data)
+		if err == nil {
+			if data["method"] == "message" {
+				body, ok := data["body"].(map[string]interface{})
+				if ok {
+					event := lsd.StatsEvent{
+						MessageUID: fmt.Sprintf("%s:%s:%d", c.node.UID(), body["uid"].(string), time.Now().UnixNano() / 1000),
+						Event: lsd.StatsEventClientSent,
+						Timestamp: time.Now().UnixNano() / 1000,
+					}
+
+					c.node.WriteLsd(event)
+				}
+			}
+		}
 	}
 }
 
@@ -246,7 +266,9 @@ func (c *client) Send(message *conns.QueuedMessage) error {
 	if !ok {
 		return proto.ErrClientClosed
 	}
+
 	plugin.Metrics.Counters.Inc("client_num_msg_queued")
+
 	if c.messages.Size() > c.maxQueueSize {
 		// Close in goroutine to not block message broadcast.
 		go c.Close(&conns.DisconnectAdvice{Reason: "slow", Reconnect: false})
@@ -929,6 +951,35 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 	plugin.Metrics.Counters.Inc("client_num_msg_published")
 
 	message := proto.NewMessage(channel, data, c.uid, &info)
+
+	// LSD event
+	var unmarshalData map[string]interface{}
+	err = json.Unmarshal(data, &unmarshalData)
+	if err == nil {
+		timestamp, ok := unmarshalData["timestamp"]
+		if ok {
+			switch timestamp.(type) {
+			case float64:
+				event := lsd.StatsEvent{
+					MessageUID: fmt.Sprintf("%s:%s", c.node.UID(), message.UID),
+					Event:      lsd.StatsEventCreatedTimestamp,
+					Timestamp:  int64(timestamp.(float64)) * 1000000, // convert to microseconds
+				}
+				c.node.WriteLsd(event)
+			default:
+			}
+		}
+	}
+
+	// LSD event
+	event := lsd.StatsEvent{
+		MessageUID: fmt.Sprintf("%s:%s", c.node.UID(), message.UID),
+		Event: lsd.StatsEventPublishedCmd,
+		Timestamp: time.Now().UnixNano() / 1000,
+	}
+
+	c.node.WriteLsd(event)
+
 	if chOpts.Watch {
 		byteMessage, err := json.Marshal(message)
 		if err != nil {

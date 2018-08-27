@@ -185,6 +185,7 @@ func PublishCmd(n *node.Node, cmd proto.PublishAPICommand) (proto.Response, erro
 	}
 
 	message := proto.NewMessageWithUID(ch, data, client, nil, uid)
+
 	if chOpts.Watch {
 		byteMessage, err := json.Marshal(message)
 		if err != nil {

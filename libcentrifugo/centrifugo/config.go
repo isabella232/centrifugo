@@ -166,6 +166,8 @@ func newNodeConfig(v config.Getter) *node.Config {
 	cfg.HistoryLifetime = v.GetInt("history_lifetime")
 	cfg.HistoryDropInactive = v.GetBool("history_drop_inactive")
 	cfg.Recover = v.GetBool("recover")
+	cfg.LsdEnabled = v.GetBool("lsd_enabled")
+	cfg.LsdStoragePath = v.GetString("lsd_storage_path")
 	cfg.Namespaces = namespacesFromConfig(v)
 	return cfg
 }

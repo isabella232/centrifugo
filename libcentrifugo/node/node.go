@@ -15,6 +15,8 @@ import (
 	"github.com/centrifugal/centrifugo/libcentrifugo/metrics"
 	"github.com/centrifugal/centrifugo/libcentrifugo/proto"
 	"github.com/satori/go.uuid"
+	"github.com/centrifugal/centrifugo/libcentrifugo/lsd"
+	"fmt"
 )
 
 // Node is a heart of Centrifugo – it internally manages client and admin hubs,
@@ -57,6 +59,8 @@ type Node struct {
 
 	// protect access to metrics snapshot.
 	metricsMu sync.RWMutex
+
+	lsdWriter *lsd.Writer
 }
 
 // global metrics registry pointing to the same Registry plugin package uses.
@@ -121,6 +125,12 @@ func New(c *Config) *Node {
 		started:         time.Now().Unix(),
 		metricsSnapshot: make(map[string]int64),
 		shutdownCh:      make(chan struct{}),
+		lsdWriter:		 &lsd.Writer{
+			Category: lsd.Category{
+				BaseDir: c.LsdStoragePath,
+				Name: "centrifugo_ls",
+			},
+		},
 	}
 
 	// Create initial snapshot with empty values.
@@ -131,12 +141,22 @@ func New(c *Config) *Node {
 	return n
 }
 
+func (n *Node) WriteLsd(data interface{}) {
+	if n.config.LsdEnabled {
+		n.lsdWriter.WriteJson(data)
+	}
+}
+
 // Config returns a copy of node Config.
 func (n *Node) Config() Config {
 	n.mu.RLock()
 	c := *n.config
 	n.mu.RUnlock()
 	return c
+}
+
+func (n *Node) UID() string {
+	return n.uid
 }
 
 // SetConfig binds config to node.
@@ -411,6 +431,7 @@ func (n *Node) ClientMsg(msg *proto.Message) error {
 	if err != nil {
 		return err
 	}
+
 	return n.clients.Broadcast(ch, byteMessage)
 }
 
@@ -462,6 +483,35 @@ func (n *Node) Publish(msg *proto.Message, opts *channel.Options) <-chan error {
 		}
 		opts = &chOpts
 	}
+
+	// LSD event
+	var unmarshalData map[string]interface{}
+	err := json.Unmarshal(msg.Data, &unmarshalData)
+	if err == nil {
+		timestamp, ok := unmarshalData["timestamp"]
+		if ok {
+			switch timestamp.(type) {
+			case float64:
+				event := lsd.StatsEvent{
+					MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
+					Event:      lsd.StatsEventCreatedTimestamp,
+					Timestamp:  int64(timestamp.(float64)) * 1000000, // convert to microseconds
+				}
+				n.WriteLsd(event)
+			default:
+			}
+		}
+	}
+
+	// LSD event
+	event := lsd.StatsEvent{
+		MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
+		Event: lsd.StatsEventPublishedCmd,
+		Timestamp: time.Now().UnixNano() / 1000,
+	}
+
+	n.WriteLsd(event)
+
 	metricsRegistry.Counters.Inc("node_num_client_msg_published")
 	return n.engine.PublishMessage(msg, opts)
 }

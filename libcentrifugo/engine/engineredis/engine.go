@@ -1113,6 +1113,7 @@ func (e *Shard) handleRedisClientMessage(chID ChannelID, data []byte) error {
 
 type pubRequest struct {
 	channel    ChannelID
+	messageUID string
 	message    []byte
 	historyKey string
 	touchKey   string
@@ -1408,6 +1409,7 @@ func (e *Shard) PublishMessage(message *proto.Message, opts *channel.Options) <-
 	if opts != nil && opts.HistorySize > 0 && opts.HistoryLifetime > 0 {
 		pr := pubRequest{
 			channel:    chID,
+			messageUID: message.UID,
 			message:    byteMessage,
 			historyKey: e.getHistoryKey(chID),
 			touchKey:   e.getHistoryTouchKey(chID),
@@ -1420,6 +1422,7 @@ func (e *Shard) PublishMessage(message *proto.Message, opts *channel.Options) <-
 
 	pr := pubRequest{
 		channel: chID,
+		messageUID: message.UID,
 		message: byteMessage,
 		err:     &eChan,
 	}

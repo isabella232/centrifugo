@@ -122,6 +122,10 @@ type Config struct {
 
 	// Namespaces - list of namespaces for custom channel options.
 	Namespaces []channel.Namespace `json:"namespaces"`
+
+	LsdEnabled bool `json:"enable_lsd"`
+
+	LsdStoragePath string `json:"lsd_storage_path"`
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -202,4 +206,6 @@ var DefaultConfig = &Config{
 	ClientQueueMaxSize:          10485760, // 10MB by default
 	ClientQueueInitialCapacity:  2,
 	ClientChannelLimit:          128,
+	LsdEnabled: 					 false,
+	LsdStoragePath: 			"/local/lsd-storage/",
 }

@@ -495,23 +495,6 @@ func (n *Node) Publish(msg *proto.Message, opts *channel.Options) <-chan error {
 	}
 
 	// LSD event
-	var mc LiveStreamMessageContainer
-
-	err := json.Unmarshal(msg.Data, &mc)
-	if err == nil {
-		var lsm LiveStreamMessage
-		err := json.Unmarshal([]byte(mc.Message), &lsm)
-		if err == nil {
-			event := lsd.StatsEvent{
-				MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
-				Event:      lsd.StatsEventCreatedTimestamp,
-				Timestamp:  lsm.Timestamp * 1000000, // convert to microseconds
-			}
-			n.WriteLsd(event)
-		}
-	}
-
-	// LSD event
 	event := lsd.StatsEvent{
 		MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
 		Event: lsd.StatsEventPublishedCmd,

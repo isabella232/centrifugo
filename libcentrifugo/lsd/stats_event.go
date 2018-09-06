@@ -1,7 +1,6 @@
 package lsd
 
 const (
-	StatsEventCreatedTimestamp      = "created"
 	StatsEventPublishedCmd 			= "published_cmd"
 	StatsEventClientSent 			= "client_sent"
 )

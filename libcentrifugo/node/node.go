@@ -473,6 +473,16 @@ func makeErrChan(err error) <-chan error {
 	return ret
 }
 
+// we are interested only in filed timestamp that is why we can omit other fields
+type LiveStreamMessage struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
+type LiveStreamMessageContainer struct {
+	Version int64 `json:"version"`
+	Message string `json:"message"`
+}
+
 // Publish sends a message to all clients subscribed on channel. All running nodes
 // will receive it and will send it to all clients on node subscribed on channel.
 func (n *Node) Publish(msg *proto.Message, opts *channel.Options) <-chan error {
@@ -485,21 +495,19 @@ func (n *Node) Publish(msg *proto.Message, opts *channel.Options) <-chan error {
 	}
 
 	// LSD event
-	var unmarshalData map[string]interface{}
-	err := json.Unmarshal(msg.Data, &unmarshalData)
+	var mc LiveStreamMessageContainer
+
+	err := json.Unmarshal(msg.Data, &mc)
 	if err == nil {
-		timestamp, ok := unmarshalData["timestamp"]
-		if ok {
-			switch timestamp.(type) {
-			case float64:
-				event := lsd.StatsEvent{
-					MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
-					Event:      lsd.StatsEventCreatedTimestamp,
-					Timestamp:  int64(timestamp.(float64)) * 1000000, // convert to microseconds
-				}
-				n.WriteLsd(event)
-			default:
+		var lsm LiveStreamMessage
+		err := json.Unmarshal([]byte(mc.Message), &lsm)
+		if err == nil {
+			event := lsd.StatsEvent{
+				MessageUID: fmt.Sprintf("%s:%s", n.UID(), msg.UID),
+				Event:      lsd.StatsEventCreatedTimestamp,
+				Timestamp:  lsm.Timestamp * 1000000, // convert to microseconds
 			}
+			n.WriteLsd(event)
 		}
 	}
 

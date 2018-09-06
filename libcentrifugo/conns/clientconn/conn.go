@@ -952,34 +952,6 @@ func (c *client) publishCmd(cmd *proto.PublishClientCommand) (proto.Response, er
 
 	message := proto.NewMessage(channel, data, c.uid, &info)
 
-	// LSD event
-	var unmarshalData map[string]interface{}
-	err = json.Unmarshal(data, &unmarshalData)
-	if err == nil {
-		timestamp, ok := unmarshalData["timestamp"]
-		if ok {
-			switch timestamp.(type) {
-			case float64:
-				event := lsd.StatsEvent{
-					MessageUID: fmt.Sprintf("%s:%s", c.node.UID(), message.UID),
-					Event:      lsd.StatsEventCreatedTimestamp,
-					Timestamp:  int64(timestamp.(float64)) * 1000000, // convert to microseconds
-				}
-				c.node.WriteLsd(event)
-			default:
-			}
-		}
-	}
-
-	// LSD event
-	event := lsd.StatsEvent{
-		MessageUID: fmt.Sprintf("%s:%s", c.node.UID(), message.UID),
-		Event: lsd.StatsEventPublishedCmd,
-		Timestamp: time.Now().UnixNano() / 1000,
-	}
-
-	c.node.WriteLsd(event)
-
 	if chOpts.Watch {
 		byteMessage, err := json.Marshal(message)
 		if err != nil {

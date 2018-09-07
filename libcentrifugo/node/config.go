@@ -123,9 +123,14 @@ type Config struct {
 	// Namespaces - list of namespaces for custom channel options.
 	Namespaces []channel.Namespace `json:"namespaces"`
 
+	// whether need to send stats to LSD
 	LsdEnabled bool `json:"enable_lsd"`
 
+	// LSD base dir
 	LsdStoragePath string `json:"lsd_storage_path"`
+
+	// LSD category name
+	LsdCategoryName string `json:"lsd_category_name"`
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -206,6 +211,7 @@ var DefaultConfig = &Config{
 	ClientQueueMaxSize:          10485760, // 10MB by default
 	ClientQueueInitialCapacity:  2,
 	ClientChannelLimit:          128,
-	LsdEnabled: 					 false,
+	LsdEnabled: 				false,
 	LsdStoragePath: 			"/local/lsd-storage/",
+	LsdCategoryName:			"local_centrifugo_ls",
 }

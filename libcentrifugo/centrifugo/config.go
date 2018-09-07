@@ -168,6 +168,7 @@ func newNodeConfig(v config.Getter) *node.Config {
 	cfg.Recover = v.GetBool("recover")
 	cfg.LsdEnabled = v.GetBool("lsd_enabled")
 	cfg.LsdStoragePath = v.GetString("lsd_storage_path")
+	cfg.LsdCategoryName = v.GetString("lsd_category_name")
 	cfg.Namespaces = namespacesFromConfig(v)
 	return cfg
 }
